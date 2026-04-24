@@ -54,7 +54,9 @@ struct PaneState {
     short_git_root: Option<String>,
     program: Option<String>,    // running program (after substitution)
     terminal_command: Option<String>, // set for command panes only
-    status: String,             // freeform, default "idle"
+    screen_hash: Option<u64>,
+    screen_changed: bool,
+    screen_quiet_ticks: u32,
 }
 ```
 
@@ -81,10 +83,14 @@ Built per-tab from both stores:
   "short_git_root": "my-project",
   "git_root": "/home/user/my-project",
   "program": "nvim",
-  "status": "running",
+  "program_substituted": true,
+  "screen_state": "changed",
+  "screen_status": "",
+  "screen_changed": true,
+  "screen_quiet_ticks": 0,
 
   "pane": [
-    { "short_dir": "...", "program": "...", "status": "...", ... },
+    { "short_dir": "...", "program": "...", "screen_state": "...", ... },
     { "short_dir": "...", ... }
   ]
 }
@@ -97,7 +103,7 @@ Built per-tab from both stores:
 
 ### Substitutions
 
-Program and status values are mapped through `Substitutions` before entering the template context. Default substitutions provide Nerd Font icons. User config merges on top via KDL `sub` block.
+Program values are mapped through `Substitutions` before entering the template context. Default substitutions provide Nerd Font icons. User config merges on top via KDL `sub` block.
 
 ## Event Flow
 
@@ -105,9 +111,9 @@ Program and status values are mapped through `Substitutions` before entering the
 2. **`PaneUpdate`** — sync `PaneStore` (positions, terminal_command for command panes). Panes removed from manifest are cleaned up.
 3. **`CwdChanged`** — update `PaneState.cwd` and `short_dir`, request git info via `run_command`.
 4. **`RunCommandResult`** — update `PaneState.git_root` and `short_git_root` from `git rev-parse --show-toplevel` result.
-5. **`Timer`** — debounce tick (0.2s): fire pending renames. Poll tick (5s): refresh CWD, program, and git info for all panes.
+5. **`Timer`** — debounce tick (0.2s): fire pending renames. Poll tick (2s): refresh CWD, program, git info, and viewport hashes for all panes.
 6. **`Key`/`Mouse`** — dashboard navigation.
-7. **`Pipe`** — `set_focused_to_manual`, `set_focused_to_managed`, `pane_status`.
+7. **`Pipe`** — `set_focused_to_manual`, `set_focused_to_managed`.
 
 ## Manual Tab Control
 
@@ -121,11 +127,11 @@ No automatic detection of manual renames — the user explicitly opts out via pi
 
 ## Debounce & Polling
 
-The timer fires at `debounce` interval (default 0.2s). Two mechanisms ride on it:
+The plugin schedules the next timer based on pending work: `debounce` (default 0.2s) while renames are pending, otherwise `poll_interval` (default 2s). Two mechanisms ride on it:
 
 1. **Rename debounce** — `pending_renames: HashSet<usize>` collects tab IDs. Each tick drains the set and renames all pending tabs. Multiple events within one tick coalesce.
 
-2. **Poll cycle** — `poll_ticks` counter increments each tick. When it reaches `poll_interval / debounce`, a full poll runs: refresh CWD (via `get_pane_cwd`), program (via `get_pane_running_command`), and git info (via `run_command`) for all panes.
+2. **Poll cycle** — a full poll runs at `poll_interval`, with initial baseline polls for panes missing CWD or viewport hash. It refreshes CWD (via `get_pane_cwd`), program (via `get_pane_running_command`), git info (via `run_command`), and viewport hashes for all panes.
 
 ## Dashboard UI
 
@@ -135,7 +141,7 @@ Five views rendered in the plugin pane via Zellij's `ui_components` API:
 |---|---|
 | Status | Plugin version, format, poll interval, debug |
 | Tabs | Table of all tabs: position, name, CWD, git root, program, managed |
-| Panes | Table of all panes: tab, position, CWD, git root, program, status |
+| Panes | Table of all panes: tab, position, CWD, git root, program, screen state |
 | Log | Debug log ring buffer (100 entries, `debug "true"` required) |
 | Help | Template variables, keyboard shortcuts, config reference |
 
@@ -144,4 +150,3 @@ Navigation: `1-5` jump, `Tab`/`Shift+Tab` cycle, `j/k` scroll, `g/G` top/bottom,
 ## Testability
 
 Zellij host calls are abstracted behind a trait (`src/host.rs`) and mocked in tests via `mockall`. The `ZellijPlugin` trait impl is `#[cfg(not(test))]` because WASM host functions don't link on the host target. Tests call `handle_event()` directly.
-

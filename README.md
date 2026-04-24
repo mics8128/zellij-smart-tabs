@@ -67,9 +67,9 @@ All configuration is inline in the plugin block.
 | Key | Type | Default | Description |
 |---|---|---|---|
 | `format` | String | See [Format Gallery](#format-gallery) | Tab name template (Jinja2-like syntax) |
-| `poll_interval` | Number (seconds) | `5` | Timer fallback interval for polling |
+| `poll_interval` | Number (seconds) | `2` | Timer fallback interval for polling |
 | `debounce` | Number (seconds) | `0.2` | Delay before applying tab rename after data changes |
-| `debug` | Bool | `true` | Enable debug logging to Zellij log |
+| `debug` | Bool | `false` | Enable debug logging to Zellij log |
 | `sub` | Block | - | Substitution rules (see below) |
 
 
@@ -99,24 +99,48 @@ The `{{ program }}` template variable will show the substituted value. Programs 
 
 | Program | Substitution | Unicode |
 |---|---|---|
+| `bash` |  | `\u{f489}` |
+| `bun` |  | `\u{e76f}` |
+| `cargo` |  | `\u{e7a8}` |
 | `nvim` |  | `\u{e6ae}` |
-| `vim` |  | `\u{37c5}` |
+| `vim` |  | `\u{e7c5}` |
 | `claude` |  | `\u{f069}` |
+| `codex` | 󰒰 | `\u{eac4}` |
+| `docker` |  | `\u{f308}` |
+| `docker-compose` |  | `\u{f308}` |
+| `emacs` |  | `\u{e632}` |
+| `fish` |  | `\u{f489}` |
+| `gh` |  | `\u{f09b}` |
+| `git` |  | `\u{e702}` |
 | `node` | 󰎙 | `\u{f0399}` |
-| `zsh` |  | `\u{f489}` |
+| `npm` |  | `\u{e71e}` |
+| `opencode` | 󰒰 | `\u{eac4}` |
+| `pnpm` |  | `\u{e71e}` |
+| `python` |  | `\u{e73c}` |
+| `python3` |  | `\u{e73c}` |
+| `rg` |  | `\u{f002}` |
+| `ripgrep` |  | `\u{f002}` |
+| `rustc` |  | `\u{e7a8}` |
+| `tmux` |  | `\u{f489}` |
+| `uv` |  | `\u{e73c}` |
+| `yarn` |  | `\u{e6a7}` |
 | `go` | | `\u{e627}` |
+| `kubectl` | ⎈ | `\u{2388}` |
+| `k9s` | ⎈ | `\u{2388}` |
+| `helm` | ⎈ | `\u{2388}` |
+| `zsh` |  | `\u{f489}` |
 
-#### Default status substitutions
+#### Screen activity status
 
-| Status | Substitution | Unicode |
-|---|---|---|
-| `idle` | *(empty - hidden)* | `""` |
-| `running` | | `\u{f110}` |
-| `pending` | 󰂚 | `\u{f009a}` |
-| `done` | | `\u{f05d}` |
-| `error` | | `\u{ea87}` |
+The plugin reads each pane viewport through Zellij's pane-content API and compares it on each poll.
 
-These are [Nerd Font](https://www.nerdfonts.com/) icons. Make sure your terminal uses a Nerd Font for them to render correctly. Override any substitution in the `sub` block.
+| Screen state | `screen_status` | Unicode | Meaning |
+|---|---|---|---|
+| `unknown` |  | `\u{f128}` | No viewport baseline has been captured yet |
+| `changed` |  | `\u{f252}` | Viewport text changed on the last poll |
+| `stable` | *(empty - hidden)* | `""` | Viewport text did not change |
+
+These are [Nerd Font](https://www.nerdfonts.com/) icons. Make sure your terminal uses a Nerd Font for them to render correctly.
 
 ### Template variables
 
@@ -126,8 +150,12 @@ These are [Nerd Font](https://www.nerdfonts.com/) icons. Make sure your terminal
 | `cwd` | String | Full path of the pane's working directory |
 | `short_git_root` | String or undefined | Last component of the git repository root path |
 | `git_root` | String or undefined | Full path to the git repository root |
-| `program` | String or undefined | Currently running program (e.g., `nvim`, `claude`, `opencode`) |
-| `status` | String | Pane activity status (freeform, set via pipe). Defaults: `idle`, `running`, `pending`, `done`, `error`. |
+| `program` | String or undefined | Currently running program after substitution (e.g., ``, ``, or raw `cmd`) |
+| `program_substituted` | Boolean | `true` when `program` matched a configured substitution |
+| `screen_state` | String | Viewport state: `unknown`, `changed`, or `stable` |
+| `screen_status` | String | Icon for the viewport state |
+| `screen_changed` | Boolean | `true` when viewport text changed on the last poll |
+| `screen_quiet_ticks` | Number | Completed polls since the last viewport change |
 
 All variables are also available scoped to specific panes:
 
@@ -141,9 +169,10 @@ Top-level variables (e.g., `{{ short_dir }}`) are aliases for `pane[0].*` (first
 A collection of format strings for different workflows. Copy one into your plugin config:
 
 ```kdl
-// Default - IDE-style: project + file context + status
-format "{% if short_git_root %}{{ short_git_root }}{% else %}{{ short_dir }}{% endif %}{% if program %} \u{eab6} {{ program }}{% endif %}{% if status %} {{ status }}{% endif %}"
-// => my-repo › nvim ✅
+// Default - IDE-style: git project marker + icon/raw command + screen activity
+format "{% if short_git_root %} {{ short_git_root }}{% else %}{{ short_dir }}{% endif %}{% if program %}{% if program_substituted %} {{ program }}{% else %}({{ program }}){% endif %}{% endif %}{% if screen_status %}{{ screen_status }}{% endif %}"
+// =>  my-repo 
+// => my-folder(custom-cli)
 
 // Minimal - just the directory name
 format "{{ short_dir }}"
@@ -157,8 +186,8 @@ format "{{ cwd }}"
 format "{% if program %}{{ program }} @ {% endif %}{{ short_dir }}"
 // => nvim @ my-project
 
-// Status indicators only (great with icon substitutions)
-format "{{ short_dir }}{% if status %} {{ status }}{% endif %}{% if program %} {{ program }}{% endif %}"
+// Screen activity indicator first
+format "{{ short_dir }}{% if screen_status %} {{ screen_status }}{% endif %}{% if program %} {{ program }}{% endif %}"
 // => my-repo ⏳ 
 
 // First pane's program (useful with splits)
@@ -219,56 +248,17 @@ Three ways to restore a manual tab to auto-management:
 2. **Clear the tab name** - rename the tab to an empty string (the plugin detects this and switches back to managed)
 3. **Esc in rename mode** - if using the recommended keybinding above, pressing `Esc` cancels the rename and restores managed mode
 
-## Pane Status
+## Screen Activity
 
-Programs can report their activity status to the plugin via pipe. The status is available as `{{ status }}` (first pane) in templates.
+Screen activity is detected inside the Zellij plugin. No Codex, Claude, or opencode hook setup is required.
 
-### Setting status
+The plugin captures the visible viewport text for each pane, hashes it, and compares it on every poll:
 
-```bash
-# From a program running inside a Zellij pane:
-zellij pipe --name pane_status --plugin smart-tabs -- '{"pane_id": "'$ZELLIJ_PANE_ID'", "status": "running"}'
-zellij pipe --name pane_status --plugin smart-tabs -- '{"pane_id": "'$ZELLIJ_PANE_ID'", "status": "done"}'
-zellij pipe --name pane_status --plugin smart-tabs -- '{"pane_id": "'$ZELLIJ_PANE_ID'", "status": "error"}'
-zellij pipe --name pane_status --plugin smart-tabs -- '{"pane_id": "'$ZELLIJ_PANE_ID'", "status": "idle"}'
-```
+- `unknown` — no baseline has been captured yet
+- `changed` — viewport text changed on the last poll
+- `stable` — viewport text did not change
 
-Status is freeform - you can send any string. The [default status substitutions](#default-status-substitutions) are applied automatically. Custom statuses without a substitution are shown as-is.
-
-### Claude Code integration
-
-Use [Claude Code hooks](https://docs.anthropic.com/en/docs/claude-code/hooks) to automatically update pane status when Claude starts and finishes work.
-
-Add this to your Claude Code settings (`.claude/settings.json` or global settings):
-
-```json
-{
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "",
-        "hooks": ["zellij pipe --plugin smart-tabs --name pane_status -- '{\"pane_id\":\"'$ZELLIJ_PANE_ID'\",\"status\":\"running\"}'"]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "",
-        "hooks": ["zellij pipe --plugin smart-tabs --name pane_status -- '{\"pane_id\":\"'$ZELLIJ_PANE_ID'\",\"status\":\"pending\"}'"]
-      }
-    ],
-    "Stop": [
-      {
-        "matcher": "",
-        "hooks": ["zellij pipe --plugin smart-tabs --name pane_status -- '{\"pane_id\":\"'$ZELLIJ_PANE_ID'\",\"status\":\"done\"}'"]
-      }
-    ]
-  }
-}
-```
-
-This sets the pane status to `running` while Claude processes tool calls, `pending` between calls, and `done` when Claude finishes. `$ZELLIJ_PANE_ID` is set automatically by Zellij for processes running inside panes.
-
-For Linux desktop notifications and other integrations, see the helper scripts in [`scripts/linux/`](scripts/linux/).
+This is intentionally heuristic. It can tell whether visible output moved, but it cannot prove that an agent is done, blocked on permission, or silently thinking.
 
 ## Dashboard
 
@@ -279,7 +269,7 @@ The plugin pane shows a tabbed dashboard with keyboard and mouse navigation.
 | Key | View | Content |
 |---|---|---|
 | `1` | Status | Plugin version, format template, config values |
-| `2` | Tabs | Table of all tabs with position, name, CWD, git root, program, status |
+| `2` | Tabs | Table of all tabs with position, name, CWD, git root, and program |
 | `3` | Panes | Table of all panes across all tabs |
 | `4` | Log | Debug log entries (enable with `debug "true"`) |
 | `5` | Help | Template variables, keyboard shortcuts, config reference |
