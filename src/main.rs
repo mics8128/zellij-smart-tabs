@@ -1,3 +1,5 @@
+#![cfg_attr(test, allow(dead_code))]
+
 mod config;
 mod host;
 mod tab_state;
