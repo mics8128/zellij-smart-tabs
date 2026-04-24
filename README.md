@@ -1,7 +1,5 @@
 # zellij-smart-tabs
 
-https://github.com/user-attachments/assets/e9ce05ce-677d-41ff-9707-7946323cac20
-
 A [Zellij](https://github.com/zellij-org/zellij) plugin that manages your tabs so that you don't have to. 
 
 
@@ -18,16 +16,32 @@ I built this because I kept losing track of which tab was which. I wanted to gla
 
 ## Installation
 
-### Download from releases
+### Install the Latest Release
 
-Download the latest `zellij-smart-tabs.wasm` from [GitHub Releases](https://github.com/yesyouken/zellij-smart-tabs/releases) and place it in your Zellij plugins directory:
+Download the latest release asset directly into your Zellij plugins directory:
 
 ```bash
 mkdir -p ~/.config/zellij/plugins
-cp zellij-smart-tabs.wasm ~/.config/zellij/plugins/
+curl -L \
+  -o ~/.config/zellij/plugins/zellij-smart-tabs.wasm \
+  https://github.com/mics8128/zellij-smart-tabs/releases/latest/download/zellij-smart-tabs.wasm
 ```
 
-### Build from source
+Then reference the local plugin from your Zellij config:
+
+```kdl
+plugins {
+    smart-tabs location="file:~/.config/zellij/plugins/zellij-smart-tabs.wasm" {
+        // optional config goes here
+    }
+}
+
+load_plugins {
+    smart-tabs
+}
+```
+
+### Build From Source
 
 Requires Rust with the `wasm32-wasip1` target:
 ```bash
@@ -35,11 +49,25 @@ rustup target add wasm32-wasip1
 ```
 
 ```bash
-git clone https://github.com/yesyouken/zellij-smart-tabs.git
+git clone https://github.com/mics8128/zellij-smart-tabs.git
 cd zellij-smart-tabs
 make build
 make install
 ```
+
+### Release Publishing
+
+Releases are published from version tags. Use the interactive publisher:
+
+```bash
+make publish
+```
+
+It requires a clean worktree, suggests the next patch/minor/major version from `Cargo.toml`, updates `Cargo.toml` and `Cargo.lock`, runs formatting, tests, clippy, and the WASM release build, commits the version bump, then pushes the commit and `vX.Y.Z` tag.
+
+Pushing the tag runs GitHub Actions. The release workflow keeps the upstream checks intact: secret scanning, host-target tests, clippy, and `wasm32-wasip1` release build. It also verifies that the tag matches `Cargo.toml`, uploads `zellij-smart-tabs.wasm` to the GitHub Release, and marks that release as latest.
+
+The install command above always resolves to the latest release asset.
 
 ### Prerequisites
 - **[Zellij](https://zellij.dev/) 0.44.0+** - requires the `CwdChanged` event and stable `tab_id` API introduced in 0.44.0
@@ -47,16 +75,16 @@ make install
 
 ## Quickstart
 
-Alias the plugin and load the plugin on startup. Replace `v0.1.0` with the latest version
+Alias the plugin and load it on startup:
 ```kdl
 plugins {
-    smart-tabs location="https://github.com/YesYouKenSpace/zellij-smart-tabs/releases/download/v0.1.0/zellij-smart-tabs.wasm" {
+    smart-tabs location="https://github.com/mics8128/zellij-smart-tabs/releases/latest/download/zellij-smart-tabs.wasm" {
         // where config for the plugin should go
     }
 }
 
 load_plugins {
-    smart-tabs // load smart-tabs on startup we only need 1 instance of it
+    smart-tabs // load one smart-tabs instance on startup
 }
 ```
 
@@ -80,7 +108,7 @@ Map program names to custom display names using the `sub` block:
 ```kdl
 plugins {
     // Note that throughout this guide, we will refer to the plugin via "smart-tabs" alias.
-    smart-tabs location="https://github.com/YesYouKenSpace/zellij-smart-tabs/releases/download/v0.0.2/zellij-smart-tabs.wasm" {
+    smart-tabs location="https://github.com/mics8128/zellij-smart-tabs/releases/latest/download/zellij-smart-tabs.wasm" {
         // where config for the plugin should go
         sub {
             program {
@@ -170,9 +198,9 @@ A collection of format strings for different workflows. Copy one into your plugi
 
 ```kdl
 // Default - IDE-style: git project marker + icon/raw command + screen activity
-format "{% if short_git_root %} {{ short_git_root }}{% else %}{{ short_dir }}{% endif %}{% if program %}{% if program_substituted %} {{ program }}{% else %}({{ program }}){% endif %}{% endif %}{% if screen_status %}{{ screen_status }}{% endif %}"
-// =>  my-repo 
-// => my-folder(custom-cli)
+format "{% if short_git_root %} {{ short_git_root }}{% else %}{{ short_dir }}{% endif %}{% if program %}{% if program_substituted %} {{ program }}{% else %}({{ program }}){% endif %}{% endif %}{% if screen_status %} {{ screen_status }}{% endif %}"
+// =>  my-repo  
+// => my-folder(custom-cli) 
 
 // Minimal - just the directory name
 format "{{ short_dir }}"
@@ -304,6 +332,7 @@ Mouse click on the tab bar switches views. Mouse scroll works within views.
 
 ## References
 
+- [Original upstream repository](https://github.com/YesYouKenSpace/zellij-smart-tabs) - Fork source
 - [zellij-tabula](https://github.com/bezbac/zellij-tabula) - Tab renaming via zsh shell hook
 - [zellij-tab-rename](https://github.com/vmaerten/zellij-tab-rename) - Tab renaming with CwdChanged event
 - [zellij-tab-name](https://github.com/Cynary/zellij-tab-name) - Pipe-based tab renaming with format strings

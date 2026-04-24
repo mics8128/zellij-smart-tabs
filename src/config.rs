@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-const DEFAULT_FORMAT: &str = "{% if short_git_root %} {{ short_git_root }}{% else %}{{ short_dir }}{% endif %}{% if program %}{% if program_substituted %} {{ program }}{% else %}({{ program }}){% endif %}{% endif %}{% if screen_status %}{{ screen_status }}{% endif %}";
+const DEFAULT_FORMAT: &str = "{% if short_git_root %} {{ short_git_root }}{% else %}{{ short_dir }}{% endif %}{% if program %}{% if program_substituted %} {{ program }}{% else %}({{ program }}){% endif %}{% endif %}{% if screen_status %} {{ screen_status }}{% endif %}";
 
 #[derive(Debug, Clone)]
 pub struct Substitutions {
@@ -205,7 +205,7 @@ mod tests {
             "screen_status": "",
         }));
 
-        assert_eq!(crate::template::render(&c.format, &ctx), "project ");
+        assert_eq!(crate::template::render(&c.format, &ctx), "project  ");
     }
 
     #[test]
@@ -220,7 +220,7 @@ mod tests {
 
         assert_eq!(
             crate::template::render(&c.format, &ctx),
-            "project(custom-cli)"
+            "project(custom-cli) "
         );
     }
 

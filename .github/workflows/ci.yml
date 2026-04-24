@@ -5,9 +5,9 @@ permissions:
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
 
 jobs:
   gitleaks:
@@ -33,7 +33,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-wasip1
-          components: clippy
+          components: clippy, rustfmt
 
       - name: Cache cargo
         uses: actions/cache@v4
@@ -47,8 +47,11 @@ jobs:
       - name: Test
         run: cargo test --target $(rustc -vV | grep host | awk '{print $2}')
 
+      - name: Format
+        run: cargo fmt --check
+
       - name: Clippy
         run: cargo clippy --target $(rustc -vV | grep host | awk '{print $2}') -- -D warnings
 
       - name: Build WASM
-        run: cargo build --release --target wasm32-wasip1
+        run: make build
