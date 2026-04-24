@@ -1,16 +1,17 @@
-.PHONY: build build-dev test lint install clean dev dev-reload clean-cache
+.PHONY: build build-dev test lint install clean dev dev-reload clean-cache version publish
 
 PLUGIN_NAME = zellij-smart-tabs
 WASM_TARGET = wasm32-wasip1
 INSTALL_DIR = $(HOME)/.config/zellij/plugins
 WASM_DEV = target/$(WASM_TARGET)/debug/$(PLUGIN_NAME).wasm
 WASM_RELEASE = target/$(WASM_TARGET)/release/$(PLUGIN_NAME).wasm
+VERSION = $(shell sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
 
 build:
-	cargo build --release
+	cargo build --release --target $(WASM_TARGET)
 
 build-dev:
-	cargo build
+	cargo build --target $(WASM_TARGET)
 
 dev: clean-cache build-dev
 	zellij -n dev-layout.kdl --session smart-tabs-dev
@@ -35,3 +36,9 @@ clean:
 
 clean-cache:
 	rm -rf ~/.cache/zellij
+
+version:
+	@echo $(VERSION)
+
+publish:
+	./scripts/publish.sh

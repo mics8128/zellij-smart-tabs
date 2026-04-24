@@ -22,7 +22,11 @@ pub fn parse_git_root(stdout: &[u8]) -> Option<String> {
 /// Iterates tokens, strips path prefixes, skips any in the skip set, returns first match.
 pub fn extract_program(cmd: &[&str], skip: &HashSet<String>) -> Option<String> {
     for token in cmd {
-        let basename = token.rsplit('/').next().unwrap_or(token);
+        let basename = token
+            .rsplit('/')
+            .next()
+            .unwrap_or(token)
+            .trim_matches(['(', ')']);
         if basename.is_empty() {
             continue;
         }
@@ -68,6 +72,10 @@ mod tests {
         assert_eq!(
             extract_program(&["cargo", "build", "--release"], &no_skip),
             Some("cargo".into())
+        );
+        assert_eq!(
+            extract_program(&["(custom-cli)"], &no_skip),
+            Some("custom-cli".into())
         );
         assert_eq!(extract_program(&[], &no_skip), None);
     }

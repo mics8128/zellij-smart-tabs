@@ -57,7 +57,15 @@ make install
 
 ### Release Publishing
 
-Releases are published from version tags. Pushing a tag such as `v0.1.1` runs GitHub Actions, builds `zellij-smart-tabs.wasm`, uploads it to the GitHub Release, and marks that release as latest.
+Releases are published from version tags. Use the interactive publisher:
+
+```bash
+make publish
+```
+
+It requires a clean worktree, suggests the next patch/minor/major version from `Cargo.toml`, updates `Cargo.toml` and `Cargo.lock`, runs formatting, tests, clippy, and the WASM release build, commits the version bump, then pushes the commit and `vX.Y.Z` tag.
+
+Pushing the tag runs GitHub Actions. The release workflow keeps the upstream checks intact: secret scanning, host-target tests, clippy, and `wasm32-wasip1` release build. It also verifies that the tag matches `Cargo.toml`, uploads `zellij-smart-tabs.wasm` to the GitHub Release, and marks that release as latest.
 
 The install command above always resolves to the latest release asset.
 
@@ -190,9 +198,9 @@ A collection of format strings for different workflows. Copy one into your plugi
 
 ```kdl
 // Default - IDE-style: git project marker + icon/raw command + screen activity
-format "{% if short_git_root %} {{ short_git_root }}{% else %}{{ short_dir }}{% endif %}{% if program %}{% if program_substituted %} {{ program }}{% else %}({{ program }}){% endif %}{% endif %}{% if screen_status %}{{ screen_status }}{% endif %}"
-// =>  my-repo 
-// => my-folder(custom-cli)
+format "{% if short_git_root %} {{ short_git_root }}{% else %}{{ short_dir }}{% endif %}{% if program %}{% if program_substituted %} {{ program }}{% else %}({{ program }}){% endif %}{% endif %}{% if screen_status %} {{ screen_status }}{% endif %}"
+// =>  my-repo  
+// => my-folder(custom-cli) 
 
 // Minimal - just the directory name
 format "{{ short_dir }}"
